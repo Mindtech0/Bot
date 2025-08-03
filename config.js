@@ -361,7 +361,7 @@ module.exports = {
     GURL: 'https://whatsapp.com/channel/0029VaZuGSxEawdxZK9CzM0Y',
     OWNER_NAME: process.env.OWNER_NAME || "Ibrahim Adams",
     OWNER_NUMBER: process.env.OWNER_NUMBER || "",
-    BOT: process.env.BOT_NAME || 'BMW_MD',
+    BOT: process.env.BOT_NAME || 'TERANCHAMP',
     BWM_XMD: hybridConfig.buildContentLayer(),
     HEROKU_APP_NAME: process.env.HEROKU_APP_NAME,
     HEROKU_APY_KEY: process.env.HEROKU_APY_KEY,
@@ -425,4 +425,6 @@ fs.watchFile(fichier, () => {
     console.log(`Updates ${__filename}`);
     delete require.cache[fichier];
     require(fichier);
+    console.log("🔍 Real bot script URL:", exports.BWM_XMD);
+
 });
