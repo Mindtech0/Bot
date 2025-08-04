@@ -1,0 +1,174 @@
+// [BWM-XMD QUANTUM EDITION]
+// >> Group Message Sender with Progress Tracking
+// >> Custom command for bulk messaging
+// >> Version: 1.0.0
+
+const { adams } = require(__dirname + "/../config");
+
+adams({
+    pattern: 'groupsend ?(.*)',
+    fromMe: true, // Only bot owner can use this (set to false if you want anyone to use)
+    desc: 'Send message to each group member individually',
+    type: 'group'
+}, async (message, match) => {
+    try {
+        const input = match[1];
+        if (!input) {
+            return await message.reply(`
+🤖 *GROUP MESSAGE SENDER*
+
+*Usage:* .groupsend <group_name> | <message>
+
+*Example:* 
+.groupsend My Friends | Hello everyone! Hope you're doing well.
+
+*Note:* This will send the message individually to each group member.
+            `);
+        }
+
+        const parts = input.split(' | ');
+        if (parts.length < 2) {
+            return await message.reply('❌ Please use format: .groupsend <group_name> | <message>');
+        }
+
+        const groupName = parts[0].trim().toLowerCase();
+        const messageToSend = parts[1].trim();
+
+        if (!messageToSend) {
+            return await message.reply('❌ Message cannot be empty!');
+        }
+
+        // Get all groups
+        const groups = Object.values(message.client.groupMetadata || {});
+        
+        // Find matching group
+        const targetGroup = groups.find(group => 
+            group.subject.toLowerCase().includes(groupName) ||
+            group.subject.toLowerCase() === groupName
+        );
+
+        if (!targetGroup) {
+            const availableGroups = groups.map(g => `• ${g.subject}`).join('\n');
+            return await message.reply(`
+❌ Group not found: "${groupName}"
+
+📋 *Available Groups:*
+${availableGroups || 'No groups found'}
+            `);
+        }
+
+        // Get group participants
+        const participants = targetGroup.participants || [];
+        const members = participants.filter(p => !p.admin && p.id !== message.client.user.id);
+
+        if (members.length === 0) {
+            return await message.reply('❌ No members found in this group!');
+        }
+
+        // Send confirmation
+        const confirmMsg = await message.reply(`
+🎯 *GROUP MESSAGE SENDER*
+
+📱 *Target Group:* ${targetGroup.subject}
+👥 *Members to message:* ${members.length}
+💬 *Message:* ${messageToSend}
+
+🚀 Starting to send messages...
+        `);
+
+        let successCount = 0;
+        let failCount = 0;
+        const startTime = Date.now();
+
+        // Send messages with progress updates
+        for (let i = 0; i < members.length; i++) {
+            const member = members[i];
+            const progress = Math.round(((i + 1) / members.length) * 100);
+            
+            try {
+                // Send message to individual member
+                await message.client.sendMessage(member.id, { 
+                    text: messageToSend 
+                });
+                successCount++;
+                
+                // Update progress every 5 messages or at key milestones
+                if ((i + 1) % 5 === 0 || progress === 25 || progress === 50 || progress === 75 || progress === 100) {
+                    await confirmMsg.edit(`
+🎯 *GROUP MESSAGE SENDER*
+
+📱 *Target Group:* ${targetGroup.subject}
+👥 *Total Members:* ${members.length}
+
+📊 *PROGRESS: ${progress}%*
+${'█'.repeat(Math.floor(progress/5))}${'░'.repeat(20-Math.floor(progress/5))}
+
+✅ *Sent:* ${successCount}
+❌ *Failed:* ${failCount}
+⏱️ *Time elapsed:* ${Math.round((Date.now() - startTime)/1000)}s
+
+${i + 1 < members.length ? '🚀 Sending...' : '✨ Complete!'}
+                    `);
+                }
+                
+                // Small delay to avoid rate limiting
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+            } catch (error) {
+                failCount++;
+                console.log(`Failed to send to ${member.id}:`, error.message);
+            }
+        }
+
+        // Final summary
+        const totalTime = Math.round((Date.now() - startTime)/1000);
+        await confirmMsg.edit(`
+🎯 *GROUP MESSAGE SENDER - COMPLETE!*
+
+📱 *Target Group:* ${targetGroup.subject}
+💬 *Message:* ${messageToSend}
+
+📊 *FINAL RESULTS:*
+✅ *Successfully sent:* ${successCount}
+❌ *Failed to send:* ${failCount}
+👥 *Total members:* ${members.length}
+⏱️ *Total time:* ${totalTime}s
+📈 *Success rate:* ${Math.round((successCount/members.length)*100)}%
+
+${successCount > 0 ? '🎉 Messages delivered successfully!' : '😔 No messages were sent'}
+        `);
+
+    } catch (error) {
+        console.error('GroupSend Error:', error);
+        await message.reply(`❌ Error: ${error.message}`);
+    }
+});
+
+// Alternative command for listing groups
+adams({
+    pattern: 'listgroups ?(.*)',
+    fromMe: true,
+    desc: 'List all available groups',
+    type: 'group'
+}, async (message, match) => {
+    try {
+        const groups = Object.values(message.client.groupMetadata || {});
+        
+        if (groups.length === 0) {
+            return await message.reply('❌ No groups found!');
+        }
+
+        let groupList = '📋 *AVAILABLE GROUPS:*\n\n';
+        groups.forEach((group, index) => {
+            const memberCount = group.participants ? group.participants.length : 0;
+            groupList += `${index + 1}. *${group.subject}*\n   👥 ${memberCount} members\n\n`;
+        });
+
+        groupList += '💡 *Tip:* Use .groupsend <group_name> | <message> to send messages';
+
+        await message.reply(groupList);
+
+    } catch (error) {
+        await message.reply(`❌ Error: ${error.message}`);
+    }
+});
